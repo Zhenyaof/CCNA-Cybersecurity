@@ -760,7 +760,7 @@ R1(config)# snmp-server host 192.168.3.1 version 3 priv SNMPUser
 ```
 - SNMPv3 user has access to all interfaces for monitoring purposes.
 
-## 1.2 Configure Access Control for SNMP:
+### 1.2 Configure Access Control for SNMP:
 
 To ensure SNMP access is limited to R1's LAN (192.168.1.0/24), configure an access control list (ACL) to permit SNMP packets only from this network:
 
@@ -768,11 +768,76 @@ R1(config)# ip access-list standard PERMIT-SNMP
 R1(config-std-nacl)# permit 192.168.1.0 0.0.0.255
 R1(config-std-nacl)# exit
 This ACL allows SNMP traffic only from the LAN network 192.168.1.0/24, securing access to SNMP data.
-### Step 2: Configure NTP
+
+### Step 2: NTP
+
+1- **Configure NTP with Authentication:**
+
+   **On R2 (NTP Master Configuration):**
+   
+   First, configure NTP authentication on R2 by defining the authentication key, hashing type, and password. The password is case-sensitive.
+
+   ```bash
+   R2(config)# ntp authentication-key 1 md5 NTPpassword
+   ```
+
+   Then, configure the trusted key on R2, which will be used for authentication:
+
+   ```bash
+   R2(config)# ntp trusted-key 1
+   ```
+
+   Enable the NTP authentication feature:
+
+   ```bash
+   R2(config)# ntp authenticate
+   ```
+
+   Configure R2 as the NTP master with a stratum number of 3. The stratum number indicates the distance from the original time source. For this lab, we use stratum 3 on R2:
+
+   ```bash
+   R2(config)# ntp master 3
+   ```
+
+   **On R1 and R3 (NTP Clients Configuration):**
+   
+   For both R1 and R3, configure NTP authentication using the same authentication key and password as on R2:
+
+   ```bash
+   R1(config)# ntp authentication-key 1 md5 NTPpassword
+   R3(config)# ntp authentication-key 1 md5 NTPpassword
+   ```
+
+   Configure the trusted key on R1 and R3 to ensure they only trust the time source from R2:
+
+   ```bash
+   R1(config)# ntp trusted-key 1
+   R3(config)# ntp trusted-key 1
+   ```
+
+   Enable the NTP authentication feature on both devices:
+
+   ```bash
+   R1(config)# ntp authenticate
+   R3(config)# ntp authenticate
+   ```
+
+   Then, configure R1 and R3 as NTP clients of R2, and enable calendar synchronization using the `ntp update-calendar` command:
+
+   ```bash
+   R1(config)# ntp server 10.1.1.2
+   R1(config)# ntp update-calendar
+
+   R3(config)# ntp server 10.1.1.2
+   R3(config)# ntp update-calendar
+   ```
+
+   - R1 and R3 will now sync their time with R2, using NTP authentication for secure time synchronization.
 ```
-R1(config)# ntp master 1
-R2(config)# ntp server 192.168.1.1
-```
+
+---
+
+This update provides the full NTP authentication configuration for R1, R2, and R3, ensuring secure synchronization of time across devices.
 
 ### Step 3: Syslog Setup
 ```
