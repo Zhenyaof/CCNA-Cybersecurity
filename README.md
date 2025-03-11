@@ -938,9 +938,7 @@ R1# auto secure
 show running-config
 ```
 
-This guide provides a comprehensive, step-by-step configuration for securing routers, ensuring both connectivity and enhanced security measures are implemented effectively.
-```
 
+## Why we use Securing the Router for Administrative Access
 
-
-## 
+Securing administrative access to routers is crucial to protect network infrastructure from unauthorized access and potential attacks. By implementing strong authentication, encryption, and access control mechanisms, we ensure that only authorized personnel can configure or manage the device. This minimizes the risk of malicious configurations, data breaches, or downtime caused by unauthorized changes. Methods such as password encryption, SSH for secure remote access, and the use of role-based views help protect sensitive network devices and maintain the integrity of the network.
