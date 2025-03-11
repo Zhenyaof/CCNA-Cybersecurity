@@ -298,9 +298,7 @@ This guide focuses on configuring **NAT Pool Overload** and **Port Address Trans
 - **PAT (Port Address Translation)** allows numerous internal hosts to share a single public IP address by distinguishing sessions using port numbers.  
 - These methods conserve IPv4 addresses, enhance security by masking internal IPs, and ensure seamless external connectivity.
 
-Here’s the detailed write-up for **Scenarios 4 and 5**, structured to match your previous repository style:  
 
----
 
 ## Scenarios 4 and 5 Summary  
 This guide focuses on **network discovery protocols** and **time synchronization** on Cisco devices. It includes configuring and verifying **Cisco Discovery Protocol (CDP)**, **Link Layer Discovery Protocol (LLDP)**, and **Network Time Protocol (NTP)** to ensure efficient network management and accurate device timekeeping.  
@@ -415,4 +413,225 @@ This guide focuses on **network discovery protocols** and **time synchronization
 
 - **CDP (Cisco Discovery Protocol):** Allows devices to discover directly connected Cisco devices, aiding in network topology mapping and troubleshooting.  
 - **LLDP (Link Layer Discovery Protocol):** An open standard for device discovery, useful in multi-vendor environments.  
-- **NTP (Network Time Protocol):** Ensures accurate timekeeping across network devices, which is essential for log accuracy, security protocols, and system operations.  
+- **NTP (Network Time Protocol):** Ensures accurate timekeeping across network devices, which is essential for log accuracy, security protocols, and system operations. 
+
+## Scenario 6 Summary  
+This guide covers the essential steps to **secure Layer 2 switches** in a network. It includes configuring **basic switch settings**, enabling **SSH access**, securing **trunk and access ports**, and implementing **DHCP snooping** for enhanced network security.  
+
+---
+
+## Key Steps  
+
+### **Part 1: Configure Hostname, IP Address, and Access Passwords**  
+
+1. **Set the Hostnames**  
+   ```plaintext
+   configure terminal  
+   hostname S1  
+   ```  
+
+2. **Configure the Management Interface**  
+   - Assign an IP address to the VLAN interface for remote management:  
+   ```plaintext
+   interface vlan 1  
+   ip address 192.168.1.2 255.255.255.0  
+   no shutdown  
+   exit  
+   ```  
+
+3. **Configure Console and VTY Access Passwords**  
+   ```plaintext
+   line console 0  
+   password cisco  
+   login  
+   exit  
+
+   line vty 0 4  
+   password cisco  
+   login  
+   transport input ssh  
+   exit  
+   ```  
+
+4. **Encrypt Passwords**  
+   ```plaintext
+   service password-encryption  
+   ```  
+
+5. **Set an Enable Secret Password**  
+   ```plaintext
+   enable secret cisco  
+   ```  
+
+---
+
+### **Part 2: Configure SSH Access to the Switches**  
+
+1. **Set Domain Name and Generate RSA Keys**  
+   ```plaintext
+   ip domain-name example.com  
+   crypto key generate rsa  
+   modulus 1024  
+   ```  
+
+2. **Configure SSH Version 2**  
+   ```plaintext
+   ip ssh version 2  
+   ```  
+
+3. **Create a Local User for SSH Access**  
+   ```plaintext
+   username admin privilege 15 secret cisco
+   ```  
+
+4. **Restrict VTY Access to SSH Only**  
+   ```plaintext
+   line vty 0 4  
+   login local  
+   transport input ssh  
+   exit  
+   ```  
+
+5. **Verify SSH Configuration**  
+   - Use the following commands to confirm SSH is active:  
+     ```plaintext
+     show ip ssh  
+     show ssh  
+     ```  
+
+6. **Test SSH Access**  
+   - From an SSH client or terminal, attempt to connect:  
+     ```plaintext
+     ssh -l admin 192.168.1.2  
+     ```  
+
+---
+
+### **Part 3: Configure Secure Trunks and Access Ports**  
+
+1. **Configure Trunk Port Mode**  
+   ```plaintext
+   interface fastEthernet 0/1  
+   switchport mode trunk  
+   ```  
+
+2. **Change the Native VLAN for Trunks**  
+   ```plaintext
+   switchport trunk native vlan 99  
+   ```  
+
+3. **Verify Trunk Configuration**  
+   ```plaintext
+   show interfaces trunk  
+   ```  
+
+4. **Enable Storm Control for Broadcasts**  
+   ```plaintext
+   storm-control broadcast level 10.00  
+   ```  
+
+5. **Configure Access Ports**  
+   ```plaintext
+   interface range gigabitEthernet 0/2-24  
+   switchport mode access  
+   switchport access vlan 10  
+   ```  
+
+6. **Enable PortFast and BPDU Guard**  
+   ```plaintext
+   spanning-tree portfast  
+   spanning-tree bpduguard enable  
+   ```  
+
+   > **Why Enable BPDU Guard?**  
+   > - BPDUs (Bridge Protocol Data Units) are used in **Spanning Tree Protocol (STP)** to prevent loops.  
+   > - If a rogue switch is connected, it could send malicious BPDUs and compromise network stability.  
+   > - **BPDU Guard** ensures that if any BPDU is received on a **PortFast**-enabled port, the port will be **automatically disabled**, protecting the network.  
+
+7. **Verify BPDU Guard**  
+   ```plaintext
+   show spanning-tree interface detail  
+   ```  
+
+8. **Enable Root Guard**  
+   ```plaintext
+   spanning-tree guard root  
+   ```  
+
+9. **Enable Loop Guard**  
+   ```plaintext
+   spanning-tree guard loop  
+   ```  
+
+10. **Configure and Verify Port Security**  
+   ```plaintext
+   switchport port-security  
+   switchport port-security maximum 2  
+   switchport port-security violation restrict  
+   switchport port-security mac-address sticky  
+   show port-security interface <interface>  
+   ```  
+
+11. **Disable Unused Ports**  
+   ```plaintext
+   interface range gigabitEthernet 0/25-48  
+   shutdown  
+   ```  
+
+12. **Move Ports from VLAN 1 to an Alternate VLAN**  
+   ```plaintext
+   switchport access vlan 99 
+   ```  
+
+13. **Configure PVLAN Edge (Private VLAN Edge)**  
+   ```plaintext
+   switchport protected  
+   ```  
+
+---
+
+### **Part 4: Configure IP DHCP Snooping**  
+
+1. **Configure DHCP on R1**  
+   ```plaintext
+   ip dhcp pool name  
+   network 192.168.10.0 255.255.255.0  
+   default-router 192.168.1.1  
+   dns-server 8.8.8.8  
+   ```  
+
+2. **Configure Inter-VLAN Routing on R1**  
+   ```plaintext
+   interface gigabitEthernet 0/1.10  
+   encapsulation dot1Q 10  
+   ip address 192.168.10.1 255.255.255.0  
+   ```  
+
+3. **Configure Trunk on S1**  
+   ```plaintext
+   interface fastEthernet 0/5  
+   switchport mode trunk  
+   ```  
+
+4. **Enable DHCP Snooping**  
+   ```plaintext
+   ip dhcp snooping  
+   ip dhcp snooping vlan 10,20  
+   interface fastEthernet 0/5  
+   ip dhcp snooping trust  
+   ```  
+
+   > **Why Enable DHCP Snooping?**  
+   > - DHCP Snooping helps prevent rogue DHCP servers from assigning incorrect IP addresses.  
+   > - It ensures that only **trusted ports** can offer DHCP services, enhancing network security.  
+
+5. **Verify DHCP Snooping**  
+   ```plaintext
+   show ip dhcp snooping  
+   show ip dhcp snooping binding  
+   ```
+
+
+
+## why we use Layer 2 Switch Security
+Securing Layer 2 switches is essential to prevent vulnerabilities and attacks in a network. Key elements include configuring basic switch settings to ensure proper initialization, enabling SSH access for secure management, securing trunk and access ports to prevent unauthorized connections and attacks like VLAN hopping, and implementing DHCP snooping to block rogue DHCP servers from disrupting network services. These steps help protect the network from common security threats and ensure that only authorized devices and traffic can access critical resources.
