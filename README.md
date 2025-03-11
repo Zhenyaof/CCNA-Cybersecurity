@@ -628,10 +628,254 @@ This guide covers the essential steps to **secure Layer 2 switches** in a networ
 5. **Verify DHCP Snooping**  
    ```plaintext
    show ip dhcp snooping  
-   show ip dhcp snooping binding  
+   show ip dhcp snooping binding
    ```
 
+   ## why we use Layer 2 Switch Security
+Securing Layer 2 switches is essential to prevent vulnerabilities and attacks in a network. Key elements include configuring basic switch settings to ensure proper initialization, enabling SSH access for secure management, securing trunk and access ports to prevent unauthorized connections and attacks like VLAN hopping, and implementing DHCP snooping to block rogue DHCP servers from disrupting network services. These steps help protect the network from common security threats and ensure that only authorized devices and traffic can access critical resources
 
 
-## why we use Layer 2 Switch Security
-Securing Layer 2 switches is essential to prevent vulnerabilities and attacks in a network. Key elements include configuring basic switch settings to ensure proper initialization, enabling SSH access for secure management, securing trunk and access ports to prevent unauthorized connections and attacks like VLAN hopping, and implementing DHCP snooping to block rogue DHCP servers from disrupting network services. These steps help protect the network from common security threats and ensure that only authorized devices and traffic can access critical resources.
+
+
+# Scenario 7
+
+This guide provides a comprehensive, step-by-step configuration for securing routers, ensuring both connectivity and enhanced security measures are implemented effectively.
+
+## Part 1: Basic Router Configuration and Connectivity
+
+### Step 1: Configure IP Addresses on Routers
+```
+R1(config)# interface g0/1
+R1(config-if)# ip address 192.168.1.1 255.255.255.0
+R1(config-if)# no shutdown
+
+R1(config)# interface s0/0/0
+R1(config-if)# ip address 10.1.1.1 255.255.255.252
+R1(config-if)# clock rate 64000
+R1(config-if)# no shutdown
+
+R2(config)# interface s0/0/0
+R2(config-if)# ip address 10.1.1.2 255.255.255.252
+R2(config-if)# no shutdown
+
+R2(config)# interface s0/0/1
+R2(config-if)# ip address 10.2.2.2 255.255.255.252
+R2(config-if)# clock rate 64000
+R2(config-if)# no shutdown
+
+R3(config)# interface g0/1
+R3(config-if)# ip address 192.168.3.1 255.255.255.0
+R3(config-if)# no shutdown
+
+R3(config)# interface s0/0/1
+R3(config-if)# ip address 10.2.2.1 255.255.255.252
+R3(config-if)# no shutdown
+```
+
+### Step 2: Configure OSPF Routing
+```
+R1(config)# router ospf 1
+R1(config-router)# network 192.168.1.0 0.0.0.255 area 0
+R1(config-router)# network 10.1.1.0 0.0.0.3 area 0
+
+R2(config)# router ospf 1
+R2(config-router)# network 10.1.1.0 0.0.0.3 area 0
+R2(config-router)# network 10.2.2.0 0.0.0.3 area 0
+
+R3(config)# router ospf 1
+R3(config-router)# network 192.168.3.0 0.0.0.255 area 0
+R3(config-router)# network 10.2.2.0 0.0.0.3 area 0
+```
+
+### Step 3: Configure PC Hosts
+- Set IP, subnet mask, and gateway on PCs
+
+### Step 4: Verify Connectivity
+```
+ping 192.168.3.3
+traceroute 192.168.3.3
+```
+
+---
+
+## Part 2: Control Administrative Access for Routers
+
+### Step 1: Encrypt Passwords
+```
+R1(config)# enable secret cisco12345
+R1(config)# service password-encryption
+R1(config)# security passwords min-length 10
+```
+
+### Step 2: Login Warning Banner
+```
+R1(config)# banner motd # Unauthorized Access Prohibited #
+```
+
+### Step 3: Configure SSH
+```
+R1(config)# hostname R1
+R1(config)# ip domain-name example.com
+R1(config)# crypto key generate rsa modulus 2048
+R1(config)# username admin secret Adm!n1234
+R1(config)# line vty 0 4
+R1(config-line)# transport input ssh
+R1(config-line)# login local
+```
+
+### Step 4: Enable SCP
+```
+R1(config)# ip scp server enable
+```
+
+### Step 5: Configure AAA for Enhanced Security
+```
+R1(config)# aaa new-model
+R1(config)# aaa authentication login default local
+R1(config)# aaa authorization exec default local
+```
+
+- AAA (Authentication, Authorization, and Accounting) manages user access and activities. Authentication verifies identity, Authorization defines user permissions, and Accounting tracks actions. This configuration enables local authentication, authorization, and activity logging.
+
+## Part 3: Configure Administrative Roles
+```
+R1(config)# parser view AdminView
+R1(config-view)# secret admin123
+R1(config-view)# commands exec include all
+
+R1(config)# parser view UserView
+R1(config-view)# secret user123
+R1(config-view)# commands exec include show
+```
+
+- Views in Cisco devices allow defining user roles and command access. AdminView grants full access, while UserView limits access to show commands. This setup enhances security by restricting command usage based on roles.
+
+## Part 4: Cisco IOS Resilience and Management Reporting
+
+### Step 1: Configure SNMPv3
+```
+R1(config)# snmp-server group SNMPv3Group v3 priv
+R1(config)# snmp-server user SNMPUser SNMPv3Group v3 auth sha authpass priv aes 128 privpass
+R1(config)# snmp-server host 192.168.3.1 version 3 priv SNMPUser
+```
+- SNMPv3 user has access to all interfaces for monitoring purposes.
+
+## 1.2 Configure Access Control for SNMP:
+
+To ensure SNMP access is limited to R1's LAN (192.168.1.0/24), configure an access control list (ACL) to permit SNMP packets only from this network:
+
+R1(config)# ip access-list standard PERMIT-SNMP
+R1(config-std-nacl)# permit 192.168.1.0 0.0.0.255
+R1(config-std-nacl)# exit
+This ACL allows SNMP traffic only from the LAN network 192.168.1.0/24, securing access to SNMP data.
+### Step 2: Configure NTP
+```
+R1(config)# ntp master 1
+R2(config)# ntp server 192.168.1.1
+```
+
+### Step 3: Syslog Setup
+```
+R1(config)# logging 192.168.1.3
+```
+- Ensure the syslog server is configured to receive and store logs effectively.
+
+---
+
+## Part 5: Securing the Control Plane
+
+In this part of the lab, you will configure OSPF routing protocol authentication using SHA256 to ensure the integrity and authenticity of OSPF messages. Additionally, you will verify that OSPF authentication is functioning correctly.
+
+### Task 1: Configure OSPF Routing Protocol Authentication using SHA256 Hashing
+
+**Step 1: Configure a key chain on all three routers.**
+
+a. **Assign a key chain name and number:**
+   
+   On each router (R1, R2, and R3), configure the key chain with a name (`NetAcad`) and key number (`1`):
+
+   ```bash
+   R1(config)# key chain NetAcad
+   R1(config-keychain)# key 1
+   ```
+
+b. **Assign the authentication key string:**
+
+   Set the key string to be used for OSPF authentication (ensure it is the same on all routers):
+
+   ```bash
+   R1(config-keychain-key)# key-string CCNASkeystring
+   ```
+
+c. **Configure the encryption algorithm to be used for authentication:**
+
+   To use SHA256 encryption for OSPF authentication, configure the cryptographic algorithm:
+
+   ```bash
+   R1(config-keychain-key)# cryptographic-algorithm hmac-sha-256
+   ```
+
+**Step 2: Configure the serial interfaces to use OSPF authentication.**
+
+a. **Assign the key-chain to the serial interfaces:**
+
+   Now configure the OSPF authentication for the serial interfaces on R1 and R3 by using the `ip ospf authentication` command to assign the key chain:
+
+   ```bash
+   R1(config)# interface s0/0/0
+   R1(config-if)# ip ospf authentication message-digest
+   R1(config-if)# ip ospf message-digest-key 1 md5 CCNASkeystring
+   ```
+
+   Repeat the same configuration for R3:
+
+   ```bash
+   R3(config)# interface s0/0/1
+   R3(config-if)# ip ospf authentication message-digest
+   R3(config-if)# ip ospf message-digest-key 1 md5 CCNASkeystring
+   ```
+
+b. **Verify OSPF Authentication:**
+
+   After configuring the authentication, verify that OSPF is using the configured authentication by checking the OSPF neighbors:
+
+   ```bash
+   R1# show ip ospf neighbor
+   ```
+
+   You should see that the OSPF neighbors are authenticated, confirming that the SHA256 OSPF authentication is working correctly.
+
+---
+
+## Part 6: Secure the Control Plane with OSPF Authentication
+
+### Step 1: Configure OSPF Message Digest Key
+
+```
+R1(config-router)# area 0 authentication message-digest
+R1(config-if)# ip ospf message-digest-key 1 sha256 OSPFpass
+```
+- Using SHA256 ensures stronger OSPF authentication, enhancing security.
+
+---
+
+## Part 7: Configure Automated Security Features
+
+### Step 1: Enable AutoSecure
+
+```
+R1# auto secure
+```
+
+### Step 2: Verify Configuration
+
+```
+show running-config
+```
+
+This guide provides a comprehensive, step-by-step configuration for securing routers, ensuring both connectivity and enhanced security measures are implemented effectively.
+```
+
+
+
+## 
